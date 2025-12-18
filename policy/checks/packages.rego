@@ -2,6 +2,7 @@ package main
 
 import future.keywords.contains
 import future.keywords.if
+import future.keywords.in
 
 # ==============================================================================
 # PACKAGE MANAGEMENT CHECKS - ENHANCED
@@ -173,3 +174,4 @@ is_properly_cleaned_up(cmd_str) if {
     contains(cmd_str, "&&")
     regex.match(".*(yum|dnf)\\s+remove", cmd_str)
 }
+
