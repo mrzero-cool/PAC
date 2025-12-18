@@ -2,6 +2,7 @@ package main
 
 import future.keywords.contains
 import future.keywords.if
+import future.keywords.in
 
 # ==============================================================================
 # FILE OPERATION CHECKS - ENHANCED
@@ -144,3 +145,4 @@ is_pipe_to_shell(cmd_str) if {
     # With xargs
     regex.match("(curl|wget).+\\|\\s*xargs.*(bash|sh)", cmd_str)
 }
+
