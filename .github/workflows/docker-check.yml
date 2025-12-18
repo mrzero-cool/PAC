@@ -1,0 +1,26 @@
+name: Dockerfile Security Check
+
+on:
+  push:
+    paths:
+      - 'Dockerfile'
+  pull_request:
+    paths:
+      - 'Dockerfile'
+
+jobs:
+  conftest-check:
+    name: Check Dockerfile Policies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Conftest
+        uses: open-policy-agent/setup-conftest@v1
+        with:
+          version: latest
+
+      - name: Run Policy Checks
+        # Runs conftest against the Dockerfile using the Rego policies in the 'policy' directory
+        run: conftest test Dockerfile -p policy/
