@@ -2,6 +2,7 @@ package main
 
 import future.keywords.contains
 import future.keywords.if
+import future.keywords.in
 
 # ==============================================================================
 # SECURITY & SECRETS CHECKS - ENHANCED
@@ -227,3 +228,4 @@ is_sensitive_file(filename) if {
     lower_name := lower(filename)
     contains(lower_name, "kubeconfig")
 }
+
