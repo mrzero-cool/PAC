@@ -2,6 +2,7 @@ package main
 
 import future.keywords.contains
 import future.keywords.if
+import future.keywords.in
 
 # ==============================================================================
 # COMMAND CHECKS (CMD/ENTRYPOINT) - ENHANCED
@@ -132,3 +133,4 @@ min(a, b) := a if {
 min(a, b) := b if {
     b <= a
 }
+
