@@ -2,6 +2,8 @@ package main
 
 import future.keywords.contains
 import future.keywords.if
+import future.keywords.in
+
 
 # ==============================================================================
 # BASE IMAGE CHECKS - ENHANCED
@@ -224,3 +226,4 @@ is_deprecated_image(image) if {
     # Python 2.x
     regex.match("python:2\\.", lower_image)
 }
+
