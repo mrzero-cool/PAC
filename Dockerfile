@@ -10,7 +10,7 @@ FROM ubuntu:latest
 WORKDIR /app
 
 # [FAIL] DF_SEC_001: Hardcoded secret (API Key)
-ENV API_KEY=12345-abcde-secret
+ENV API_KEY=12345-abcde-secret-key
 
 # [FAIL] DF_SEC_002: ARG with default secret value
 ARG DB_PASSWORD=mysecretpassword
@@ -32,4 +32,5 @@ RUN apt-get update && apt-get install -y curl
 EXPOSE 22
 
 CMD ["/bin/bash"]
+
 
