@@ -1,0 +1,191 @@
+# ==============================================================================
+# GOOD DOCKER-COMPOSE.YML EXAMPLE
+# ==============================================================================
+# This file demonstrates SECURE configurations following all security policies.
+# Use this as a template for production deployments.
+#
+# Security features implemented:
+# - DC_IMG_001: Specific version tags
+# - DC_USER_001: Non-root users
+# - DC_USER_002: No privileged mode
+# - DC_SEC_001: no-new-privileges enabled
+# - DC_SEC_002: All capabilities dropped
+# - DC_SEC_003: Only required capabilities added
+# - DC_NET_002: Minimal port exposure
+# - DC_NET_004: No SSH port exposure
+# - DC_NET_005: Default bridge networking
+# - DC_VOL_002: Read-only mounts where possible
+# - DC_VOL_003: No Docker socket mounts
+# - DC_VOL_004: No host root mounts
+# - DC_ENV_001: External secrets management
+# ==============================================================================
+
+version: "3.8"
+
+services:
+  # Service 1: Web application with proper security
+  secure-web:
+    image: nginx:1.25.3-alpine # DC_IMG_001: Specific version tag
+    user: "1000:1000" # DC_USER_001: Non-root user
+    # DC_USER_002: No privileged mode (default: false)
+    security_opt:
+      - no-new-privileges:true # DC_SEC_001: Prevent privilege escalation
+    cap_drop:
+      - ALL # DC_SEC_002: Drop all capabilities
+    cap_add:
+      - NET_BIND_SERVICE # DC_SEC_003: Only required capability for port 80
+    ports:
+      - "8080:80" # DC_NET_002, DC_NET_004: Only necessary ports, no SSH
+    # DC_NET_005: Default bridge networking (not specified = secure)
+    volumes:
+      - ./html:/usr/share/nginx/html:ro # DC_VOL_002: Read-only mount
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro # DC_VOL_002: Read-only config
+      # DC_VOL_003: No Docker socket mounted
+      # DC_VOL_004: No host root mounted
+    environment:
+      # DC_ENV_001: No hardcoded secrets
+      - NGINX_HOST=example.com
+      - NGINX_PORT=80
+    # Use secrets from external file (should be in .gitignore)
+    env_file:
+      - .env.production # DC_ENV_003: Ensure this is in .gitignore
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Service 2: Database with proper security
+  secure-db:
+    image: postgres:16.1-alpine # DC_IMG_001: Specific version tag
+    user: "999:999" # DC_USER_001: Non-root (postgres user)
+    security_opt:
+      - no-new-privileges:true # DC_SEC_001
+    cap_drop:
+      - ALL # DC_SEC_002
+    cap_add:
+      - CHOWN # DC_SEC_003: Only required capabilities
+      - SETUID
+      - SETGID
+    # DC_NET_002, DC_NET_004: No external ports exposed
+    # Database only accessible via internal Docker network
+    volumes:
+      - db-data:/var/lib/postgresql/data # Named volume (not host mount)
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro # DC_VOL_002: Read-only
+    environment:
+      # DC_ENV_001: Use secrets from external file
+      - POSTGRES_USER=appuser
+      - POSTGRES_DB=appdb
+      # POSTGRES_PASSWORD loaded from .env.production (external secrets)
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U appuser -d appdb" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - backend # Internal network only
+
+  # Service 3: Application with minimal privileges
+  secure-app:
+    image: node:20.10.0-alpine # DC_IMG_001: Specific version tag
+    user: "1001:1001" # DC_USER_001: Non-root user
+    security_opt:
+      - no-new-privileges:true # DC_SEC_001
+    cap_drop:
+      - ALL # DC_SEC_002
+    # DC_SEC_003: No additional capabilities needed
+    ports:
+      - "3000:3000" # DC_NET_002: Only application port exposed
+    volumes:
+      - ./app:/usr/src/app:ro # DC_VOL_002: Read-only source code
+      - app-logs:/var/log/app # Named volume for logs (writable)
+    working_dir: /usr/src/app
+    command: [ "node", "server.js" ]
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info # DC_LOG_003: Info level, not debug
+      # Secrets loaded from external source
+    env_file:
+      - .env.production
+    depends_on:
+      - secure-db
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "node", "healthcheck.js" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - backend
+      - frontend
+
+  # Service 4: Redis cache with security
+  secure-cache:
+    image: redis:7.2.3-alpine # DC_IMG_001: Specific version
+    user: "999:1000" # DC_USER_001: Non-root
+    security_opt:
+      - no-new-privileges:true # DC_SEC_001
+    cap_drop:
+      - ALL # DC_SEC_002
+    # DC_NET_002: No external exposure, internal only
+    volumes:
+      - redis-data:/data # Named volume
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro # DC_VOL_002: Read-only
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - backend
+
+# Named volumes (managed by Docker, not host mounts)
+volumes:
+  db-data:
+    driver: local
+  app-logs:
+    driver: local
+  redis-data:
+    driver: local
+
+# Network isolation
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true # Backend network is isolated from external access
+
+# ==============================================================================
+# SECRETS MANAGEMENT BEST PRACTICES
+# ==============================================================================
+#
+# 1. Create a .env.production file (add to .gitignore):
+#    POSTGRES_PASSWORD=<strong-random-password>
+#    JWT_SECRET=<strong-random-secret>
+#    API_KEY=<your-api-key>
+#
+# 2. Add to .gitignore:
+#    .env
+#    .env.local
+#    .env.*.local
+#    .env.production
+#
+# 3. For production, use Docker secrets or external secret managers:
+#    - Docker Swarm secrets
+#    - Kubernetes secrets
+#    - HashiCorp Vault
+#    - AWS Secrets Manager
+#    - Azure Key Vault
+#
+# 4. File permissions:
+#    chmod 600 .env.production
+#    chmod 644 docker-compose.yml
+#
+# ==============================================================================

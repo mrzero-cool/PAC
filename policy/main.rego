@@ -9,6 +9,7 @@
 #   ├── main.rego (this file)
 #   ├── lib/helpers.rego
 #   └── checks/
+#       # Dockerfile Checks (21 checks)
 #       ├── base_image.rego
 #       ├── user.rego
 #       ├── security.rego
@@ -16,9 +17,21 @@
 #       ├── packages.rego
 #       ├── commands.rego
 #       ├── filesystem.rego
-#       └── multistage.rego
+#       ├── multistage.rego
+#       # docker-compose.yml Checks (15 checks)
+#       ├── compose_images.rego
+#       ├── compose_user.rego
+#       ├── compose_security.rego
+#       ├── compose_network.rego
+#       ├── compose_volumes.rego
+#       ├── compose_environment.rego
+#       # General Validation (4 checks)
+#       └── general_validation.rego
 #
-# Total Checks: 21 (8 Critical + 13 High Severity)
+# Total Checks: 32
+#   - Dockerfile: 13 checks (9 Critical + 4 High)
+#   - docker-compose: 15 checks (11 Critical + 4 High)
+#   - General: 4 checks (4 Critical)
 # ==============================================================================
 
 package main

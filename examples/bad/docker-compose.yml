@@ -1,0 +1,98 @@
+# ==============================================================================
+# BAD DOCKER-COMPOSE.YML EXAMPLE
+# ==============================================================================
+# This file demonstrates INSECURE configurations that violate security policies.
+# DO NOT use this in production!
+#
+# Violations demonstrated:
+# - DC_IMG_001: Using :latest tags
+# - DC_USER_001: Running as root
+# - DC_USER_002: Using privileged mode
+# - DC_SEC_001: Missing no-new-privileges
+# - DC_SEC_002: Not dropping capabilities
+# - DC_SEC_003: Adding dangerous capabilities
+# - DC_NET_002: Exposing unnecessary ports
+# - DC_NET_004: Exposing SSH port
+# - DC_NET_005: Using host network mode
+# - DC_VOL_002: Writable host mounts
+# - DC_VOL_003: Mounting Docker socket
+# - DC_VOL_004: Mounting host root filesystem
+# - DC_ENV_001: Hardcoded secrets in environment
+# ==============================================================================
+
+version: "3.8"
+
+services:
+  # Service 1: Web application with multiple violations
+  insecure-web:
+    image: nginx:latest # DC_IMG_001: Using :latest tag
+    # DC_USER_001: No user specified (runs as root)
+    privileged: true # DC_USER_002: Privileged mode enabled
+    # DC_SEC_001: No security_opt with no-new-privileges
+    # DC_SEC_002: No cap_drop
+    cap_add:
+      # DC_SEC_003: Dangerous capabilities
+      - SYS_ADMIN
+      - NET_ADMIN
+      - SYS_MODULE
+      - DAC_OVERRIDE
+    ports:
+      - "22:22" # DC_NET_004: Exposing SSH
+      - "3306:3306" # DC_NET_002: Exposing MySQL directly
+      - "6379:6379" # DC_NET_002: Exposing Redis directly
+    network_mode: host # DC_NET_005: Host network mode
+    volumes:
+      - /:/host # DC_VOL_004: Mounting host root
+      - /var/run/docker.sock:/var/run/docker.sock # DC_VOL_003: Docker socket
+      - /etc:/container-etc # DC_VOL_002: Writable mount of /etc
+    environment:
+      - DATABASE_PASSWORD=super_secret_123 # DC_ENV_001: Hardcoded secret
+      - API_KEY=sk-1234567890abcdef # DC_ENV_001: Hardcoded API key
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY # DC_ENV_001
+
+  # Service 2: Database with multiple violations
+  insecure-db:
+    image: postgres # DC_IMG_001: No version tag (defaults to :latest)
+    user: "0:0" # DC_USER_001: Running as root (UID 0)
+    ports:
+      - "5432:5432" # DC_NET_002: Direct database exposure
+      - "9200:9200" # DC_NET_002: Direct Elasticsearch exposure
+    volumes:
+      - /home:/backup # DC_VOL_002: Writable mount of /home
+      - ./sensitive-data:/data # DC_VOL_002: Writable host mount
+    environment:
+      POSTGRES_PASSWORD: "weak_password" # DC_ENV_001: Hardcoded DB password
+      SECRET_TOKEN: "token123" # DC_ENV_001: Hardcoded secret
+
+  # Service 3: Application with environment violations
+  insecure-app:
+    image: node:latest # DC_IMG_001: Using :latest
+    user: root # DC_USER_001: Running as root user
+    privileged: true # DC_USER_002: Privileged mode
+    cap_add:
+      # DC_SEC_003: Too many capabilities (>3)
+      - SETUID
+      - SETGID
+      - SYS_PTRACE
+      - SYS_ADMIN
+    ports:
+      - "23:23" # DC_NET_002: Telnet port
+      - "3389:3389" # DC_NET_002: RDP port
+    volumes:
+      - /bin:/host-bin # DC_VOL_002: Writable mount of system binaries
+    environment:
+      - JWT_SECRET=my-super-secret-jwt-key # DC_ENV_001
+      - PRIVATE_KEY=-----BEGIN RSA PRIVATE KEY----- # DC_ENV_001
+      - AUTH_TOKEN=bearer_xyz123 # DC_ENV_001
+    logging:
+      options:
+        env: "DEBUG_PASSWORD,SECRET_KEY" # DC_LOG_003: Logging environment vars
+        level: "debug" # DC_LOG_003: Debug logging with secrets present
+
+  # Service 4: Minimal violations example
+  minimal-bad:
+    image: alpine # DC_IMG_001: No tag specified
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # DC_VOL_003: Docker socket
+    environment:
+      - PASSWORD=changeme # DC_ENV_001: Hardcoded password
