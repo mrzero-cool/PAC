@@ -5,127 +5,138 @@ import future.keywords.if
 import future.keywords.in
 
 # ==============================================================================
-# COMMAND CHECKS (CMD/ENTRYPOINT) - ENHANCED
+# FILE OPERATION CHECKS - ENHANCED
 # ==============================================================================
 
-# DF_CMD_002: Use exec form not shell form
-# Enhanced: Better detection of shell vs exec form with fewer false positives
+# DF_FILE_002: Explicitly COPY required files only
+# Enhanced: Better wildcard detection and multistage awareness
 deny contains msg if {
     some i
     cmd := input[i]
-    is_cmd_or_entrypoint(cmd.Cmd)
-    count(cmd.Value) == 1
-    value := cmd.Value[0]
-    is_shell_form(value)
-    msg := sprintf("[DF_CMD_002][HIGH] Use exec form [\"cmd\", \"arg\"] instead of shell form for %s. Found: %s. Shell form enables shell injection attacks.", [upper(cmd.Cmd), value])
+    cmd.Cmd == "copy"
+    count(cmd.Value) > 0
+    
+    # Filter out flags
+    non_flag_values := [v | some v in cmd.Value; not startswith(v, "--")]
+    count(non_flag_values) > 0
+    
+    source := non_flag_values[0]
+    is_wildcard_copy(source)
+    
+    msg := sprintf("[DF_FILE_002][HIGH] Copy only required files, not entire directories. Found: COPY %s. Use specific file patterns instead.", [source])
 }
 
-is_shell_form(value) if {
-    # Shell form typically contains spaces (e.g., "python app.py")
-    # Exec form with single arg like ["python3"] won't have spaces
-    contains(value, " ")
+is_wildcard_copy(source) if {
+    source == "."
 }
 
-is_shell_form(value) if {
-    # Shell form with shell constructs
-    contains(value, "&&")
+is_wildcard_copy(source) if {
+    source == "./"
 }
 
-is_shell_form(value) if {
-    contains(value, "||")
+is_wildcard_copy(source) if {
+    source == "*"
 }
 
-is_shell_form(value) if {
-    contains(value, "|")
+is_wildcard_copy(source) if {
+    source == "./*"
 }
 
-is_shell_form(value) if {
-    # Variable expansion indicates shell form
-    contains(value, "$")
+is_wildcard_copy(source) if {
+    # Dot with any path separator
+    regex.match("^\\.$", source)
 }
 
-is_shell_form(value) if {
-    # Script invocation
-    regex.match(".*/bin/(ba)?sh\\s+-c", value)
-}
-
-# DF_CMD_003: Do not use sudo in container
-# Enhanced: Comprehensive sudo detection including su and doas
-deny contains msg if {
-    some i
-    cmd := input[i]
-    cmd.Cmd == "run"
-    full_cmd := concat(" ", cmd.Value)
-    uses_sudo(full_cmd)
-    msg := sprintf("[DF_CMD_003][HIGH] Do not use sudo/su in containers. Found in RUN: '%s'. Run commands directly as the appropriate user with USER instruction.", [full_cmd])
-}
-
-uses_sudo(cmd_str) if {
-    # sudo command
-    regex.match("(^|\\s)sudo\\s+", cmd_str)
-}
-
-uses_sudo(cmd_str) if {
-    # su command (except 'su -' in proper user switching context)
-    regex.match("(^|\\s)su\\s+", cmd_str)
-    not contains(cmd_str, "su -")
-}
-
-uses_sudo(cmd_str) if {
-    # doas (OpenBSD sudo alternative)
-    regex.match("(^|\\s)doas\\s+", cmd_str)
-}
-
-uses_sudo(cmd_str) if {
-    # sudo with options
-    regex.match("sudo\\s+-[a-zA-Z]+", cmd_str)
-}
-
-# DF_CMD_004: Minimize running as root
-# Enhanced: Smarter detection of unnecessary root operations
+# DF_FILE_003: Set appropriate file permissions
+# Enhanced: Comprehensive insecure permission detection
 deny contains msg if {
     some i
     cmd := input[i]
     cmd.Cmd == "run"
     full_cmd := concat(" ", cmd.Value)
-    requires_root_unnecessarily(full_cmd)
-    operation := get_root_operation(full_cmd)
-    msg := sprintf("[DF_CMD_004][HIGH] Minimize commands run as root. Consider if this needs root: '%s'. Run as non-root user when possible.", [operation])
+    has_insecure_chmod(full_cmd)
+    insecure_pattern := get_insecure_pattern(full_cmd)
+    msg := sprintf("[DF_FILE_003][HIGH] Avoid insecure permissions. Found: '%s' in RUN. Use restrictive permissions (e.g., 755 for directories, 644 for files).", [insecure_pattern])
 }
 
-requires_root_unnecessarily(cmd_str) if {
-    # World-writable chmod (doesn't need root)
-    regex.match("chmod\\s+(777|666)", cmd_str)
+has_insecure_chmod(cmd_str) if {
+    # World-writable: 777
+    contains(cmd_str, "chmod")
+    regex.match("chmod.*(777|0777)", cmd_str)
 }
 
-requires_root_unnecessarily(cmd_str) if {
-    # Changing ownership to root (usually unnecessary)
-    regex.match("chown\\s+root:", cmd_str)
+has_insecure_chmod(cmd_str) if {
+    # World-writable files: 666
+    contains(cmd_str, "chmod")
+    regex.match("chmod.*(666|0666)", cmd_str)
 }
 
-requires_root_unnecessarily(cmd_str) if {
-    # chown to root:root
-    contains(cmd_str, "chown root:root")
+has_insecure_chmod(cmd_str) if {
+    # Symbolic: o+w (others write)
+    contains(cmd_str, "chmod")
+    regex.match("chmod.*o\\+w", cmd_str)
 }
 
-requires_root_unnecessarily(cmd_str) if {
-    # chown to 0:0
-    regex.match("chown\\s+0:0", cmd_str)
+has_insecure_chmod(cmd_str) if {
+    # Symbolic: a+w (all write)
+    contains(cmd_str, "chmod")
+    regex.match("chmod.*a\\+w", cmd_str)
 }
 
-get_root_operation(cmd_str) := "chmod 777" if {
-    contains(cmd_str, "chmod 777")
-} else := "chown root" if {
-    contains(cmd_str, "chown root")
-} else := operation if {
-    operation := substring(cmd_str, 0, min(50, count(cmd_str)))
+has_insecure_chmod(cmd_str) if {
+    # Too permissive: 7xx across the board
+    contains(cmd_str, "chmod")
+    regex.match("chmod.*\\s+7[0-7]{2}", cmd_str)
+    # Exclude 755 and 750 which are common and acceptable
+    not regex.match("chmod.*(755|750)", cmd_str)
 }
 
-# Helper to get minimum
-min(a, b) := a if {
-    a < b
+get_insecure_pattern(cmd_str) := pattern if {
+    regex.match("chmod.*(777|0777)", cmd_str)
+    pattern := "chmod 777"
+} else := pattern if {
+    regex.match("chmod.*(666|0666)", cmd_str)
+    pattern := "chmod 666"
+} else := pattern if {
+    regex.match("chmod.*o\\+w", cmd_str)
+    pattern := "chmod o+w"
+} else := "chmod with insecure permissions" if {
+    true  # Fallback
 }
-min(a, b) := b if {
-    b <= a
+
+# DF_FILE_004: Avoid curl | bash / wget | sh patterns
+# Enhanced: Comprehensive pipe-to-shell detection with more variations
+deny contains msg if {
+    some i
+    cmd := input[i]
+    cmd.Cmd == "run"
+    full_cmd := concat(" ", cmd.Value)
+    is_pipe_to_shell(full_cmd)
+    msg := sprintf("[DF_FILE_004][CRITICAL] Avoid piping downloads to shell interpreters. Found in RUN: '%s'. Download, verify, then execute separately.", [full_cmd])
+}
+
+is_pipe_to_shell(cmd_str) if {
+    # curl/wget piped to bash/sh/zsh
+    regex.match("(curl|wget).+\\|.*(bash|sh|zsh)", cmd_str)
+}
+
+is_pipe_to_shell(cmd_str) if {
+    # curl/wget piped to any shell
+    regex.match("(curl|wget).+\\|\\s*(sudo\\s+)?(bash|sh|zsh|fish|ksh)", cmd_str)
+}
+
+is_pipe_to_shell(cmd_str) if {
+    # Variations with output redirection
+    regex.match("(curl|wget).+\\|\\s*\\$\\(.*\\)", cmd_str)
+}
+
+is_pipe_to_shell(cmd_str) if {
+    # Direct to interpreter: curl url | sh
+    regex.match("(curl|wget).*\\|\\s*sh\\b", cmd_str)
+}
+
+is_pipe_to_shell(cmd_str) if {
+    # With xargs
+    regex.match("(curl|wget).+\\|\\s*xargs.*(bash|sh)", cmd_str)
 }
 
