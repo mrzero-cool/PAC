@@ -2,6 +2,7 @@ package main
 
 import future.keywords.contains
 import future.keywords.if
+import future.keywords.in
 
 # ==============================================================================
 # FILESYSTEM CHECKS - ENHANCED
@@ -51,3 +52,4 @@ is_scratch_image if {
     image := val[0]
     lower(image) == "scratch"
 }
+

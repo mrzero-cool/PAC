@@ -2,6 +2,7 @@ package main
 
 import future.keywords.contains
 import future.keywords.if
+import future.keywords.in
 
 # ==============================================================================
 # MULTISTAGE BUILD CHECKS - ENHANCED
@@ -61,3 +62,4 @@ is_wildcard_copy(source) if {
 is_wildcard_copy(source) if {
     source == "/*"
 }
+

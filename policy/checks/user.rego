@@ -2,6 +2,7 @@ package main
 
 import future.keywords.contains
 import future.keywords.if
+import future.keywords.in
 
 # ==============================================================================
 # USER & PERMISSION CHECKS - ENHANCED
@@ -115,3 +116,4 @@ has_suid_sgid(cmd_str) if {
     # Numeric without space: chmod 4755
     regex.match("chmod\\s+[426][0-7]{3}\\s+", cmd_str)
 }
+
