@@ -91,23 +91,14 @@ has_insecure_chmod(cmd_str) if {
     not regex.match("chmod.*(755|750)", cmd_str)
 }
 
-get_insecure_pattern(cmd_str) := pattern if {
+get_insecure_pattern(cmd_str) := "chmod 777" if {
     regex.match("chmod.*(777|0777)", cmd_str)
-    pattern := "chmod 777"
-}
-
-get_insecure_pattern(cmd_str) := pattern if {
+} else := "chmod 666" if {
     regex.match("chmod.*(666|0666)", cmd_str)
-    pattern := "chmod 666"
-}
-
-get_insecure_pattern(cmd_str) := pattern if {
+} else := "chmod o+w" if {
     regex.match("chmod.*o\\+w", cmd_str)
-    pattern := "chmod o+w"
-}
-
-get_insecure_pattern(cmd_str) := "chmod with insecure permissions" if {
-    true  # Fallback
+} else := "chmod with insecure permissions" if {
+    true
 }
 
 # DF_FILE_004: Avoid curl | bash / wget | sh patterns
