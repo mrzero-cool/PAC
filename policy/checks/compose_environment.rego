@@ -23,11 +23,11 @@ deny contains msg if {
     service_config.environment
     
     # Handle both array and object formats
-    has_secret_in_environment(service_config.environment, service_name)
+    msg := get_secret_env_error(service_name, service_config.environment)
 }
 
 # For object-style environment (key: value)
-has_secret_in_environment(env_obj, service_name) := true if {
+get_secret_env_error(service_name, env_obj) := msg if {
     is_object(env_obj)
     some key, value in env_obj
     lower_key := lower(key)
@@ -41,7 +41,7 @@ has_secret_in_environment(env_obj, service_name) := true if {
 }
 
 # For array-style environment (["KEY=value"])
-has_secret_in_environment(env_array, service_name) := true if {
+get_secret_env_error(service_name, env_array) := msg if {
     is_array(env_array)
     some env_entry in env_array
     entry_str := sprintf("%v", [env_entry])
