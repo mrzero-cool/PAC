@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  # ----------------------------------------------------------------------------
+  # FAIL CASE: Insecure Service Configuration
+  # ----------------------------------------------------------------------------
+  vulnerable-service:
+    # [FAIL] DC_IMG_001: Using 'latest' tag
+    image: nginx:latest
+
+    # [FAIL] DC_USER_001: Running as root (Default if not specified)
+    # [FAIL] DC_USER_002: Privileged mode (Disables isolation)
+    privileged: true
+
+    # [FAIL] DC_SEC_001: Missing no-new-privileges
+    # [FAIL] DC_SEC_002: Missing cap_drop: [ALL]
+    # [FAIL] DC_SEC_003: Adding dangerous capability
+    cap_add:
+      - SYS_ADMIN
+
+    # [FAIL] DC_NET_002/004: Exposing dangerous ports (SSH 22, Redis 6379)
+    ports:
+      - "22:22"
+      - "6379:6379"
+
+    # [FAIL] DC_NET_005: Using host network mode
+    network_mode: host
+
+    # [FAIL] DC_VOL_002: Writable host mount
+    # [FAIL] DC_VOL_003: Docker socket mount
+    # [FAIL] DC_VOL_004: Host root mount
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /:/host-root
+      - ./config:/etc/config
+
+    # [FAIL] DC_ENV_001: Hardcoded secret in environment
+    # [FAIL] DC_ENV_003: Committed .env file reference
+    environment:
+      - DB_PASSWORD=insecure_password
+    env_file:
+      - .env
+
+    # [FAIL] DC_LOG_003: Logging sensitive environment info
+    logging:
+      driver: "json-file"
+      options:
+        env: "DB_PASSWORD"
+        level: "debug"
+
+  # ----------------------------------------------------------------------------
+  # PASS CASE: Secure Service Configuration
+  # ----------------------------------------------------------------------------
+  secure-service:
+    # [PASS] DC_IMG_001: Specific version tag
+    image: nginx:1.25.3-alpine
+
+    # [PASS] DC_USER_001: Running as non-root
+    user: "1001:1001"
+    privileged: false
+
+    # [PASS] DC_SEC_001: Privilege escalation disabled
+    # [PASS] DC_SEC_002: All capabilities dropped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+    # [PASS] DC_NET_002: Only required web port exposed
+    ports:
+      - "8080:80"
+
+    # [PASS] DC_VOL_002: Read-only volume mount
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+
+    # [PASS] DC_ENV_001: Secrets injected via environment reference (Shell)
+    environment:
+      - API_TOKEN=${API_TOKEN}
