@@ -150,4 +150,6 @@ See project license file.
 ## Support
 
 For issues or questions, refer to the documentation or raise an issue.
+
 Author: mrzero-cool
+
