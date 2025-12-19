@@ -81,11 +81,9 @@ deny contains msg if {
     some service_name, service_config in input.services
     service_config.env_file
     
-    # Check env_file references
-    some env_file_entry in array.concat(
-        is_array(service_config.env_file) ? service_config.env_file : [service_config.env_file],
-        []
-    )
+    # Check env_file references (handles both string and array)
+    env_files := cast_to_array(service_config.env_file)
+    some env_file_entry in env_files
     
     env_file_str := sprintf("%v", [env_file_entry])
     contains(env_file_str, ".env")
@@ -93,15 +91,11 @@ deny contains msg if {
     msg := sprintf("[DC_ENV_003][CRITICAL] Service '%s' references .env file: '%s'. Ensure .env files are in .gitignore and never committed to version control.", [service_name, env_file_str])
 }
 
-# Alternative check for top-level env_file
-deny contains msg if {
-    input.services
-    some service_name, service_config in input.services
-    service_config.env_file
-    is_string(service_config.env_file)
-    contains(service_config.env_file, ".env")
-    
-    msg := sprintf("[DC_ENV_003][CRITICAL] Service '%s' references .env file: '%s'. Ensure .env files are in .gitignore.", [service_name, service_config.env_file])
+cast_to_array(x) := x if {
+    is_array(x)
+}
+cast_to_array(x) := [x] if {
+    is_string(x)
 }
 
 # DC_LOG_003: Do not log sensitive information
