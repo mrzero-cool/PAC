@@ -115,14 +115,9 @@ requires_root_unnecessarily(cmd_str) if {
 
 get_root_operation(cmd_str) := "chmod 777" if {
     contains(cmd_str, "chmod 777")
-}
-
-get_root_operation(cmd_str) := "chown root" if {
+} else := "chown root" if {
     contains(cmd_str, "chown root")
-}
-
-get_root_operation(cmd_str) := operation if {
-    # Extract first 50 chars
+} else := operation if {
     operation := substring(cmd_str, 0, min(50, count(cmd_str)))
 }
 
