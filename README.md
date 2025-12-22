@@ -67,30 +67,33 @@ conftest test examples/good/docker-compose.yml --policy policy/  # Should pass
 
 ## Project Structure
 
-```
+```text
 ├── policy/                        # OPA Rego policies
 │   ├── main.rego                  # Entry point
 │   ├── lib/
 │   │   └── helpers.rego           # Common helper functions
-│   └── checks/                    # Modular check files (32 total checks)
-│       # Dockerfile Checks (13)
-│       ├── base_image.rego        # Base image security (5 checks)
-│       ├── user.rego              # User/permission (3 checks)
-│       ├── security.rego          # Secrets management (3 checks)
-│       ├── files.rego             # File operations (3 checks)
-│       ├── packages.rego          # Package management (2 checks)
-│       ├── commands.rego          # CMD/ENTRYPOINT (3 checks)
-│       ├── filesystem.rego        # Filesystem (1 check)
-│       ├── multistage.rego        # Multistage builds (1 check)
-│       # docker-compose Checks (15)
-│       ├── compose_images.rego    # Image tags (1 check)
-│       ├── compose_user.rego      # User/privileges (2 checks)
-│       ├── compose_security.rego  # Security opts/caps (3 checks)
-│       ├── compose_network.rego   # Network/ports (3 checks)
-│       ├── compose_volumes.rego   # Volume mounts (3 checks)
-│       ├── compose_environment.rego # Env vars/secrets (3 checks)
-│       # General Validation (4)
-│       └── general_validation.rego # YAML/JSON/permissions (4 checks)
+│   ├── base/                      # Base image checks
+│   │   ├── base_image.rego
+│   │   ├── multistage.rego
+│   │   ├── packages.rego
+│   │   └── compose_images.rego
+│   ├── user/                      # User & permission checks
+│   │   ├── user.rego
+│   │   └── compose_user.rego
+│   ├── network/                   # Network checks
+│   │   └── compose_network.rego
+│   ├── security/                  # Security options & secrets
+│   │   ├── security.rego
+│   │   ├── compose_security.rego
+│   │   └── compose_environment.rego
+│   ├── files/                     # File operation checks
+│   │   ├── files.rego
+│   │   ├── filesystem.rego
+│   │   └── compose_volumes.rego
+│   ├── commands/                  # Command checks
+│   │   └── commands.rego
+│   └── general/                   # General validation
+│       └── general_validation.rego
 ├── examples/
 │   ├── bad/
 │   │   ├── Dockerfile             # Anti-patterns (13 violations)
@@ -122,7 +125,7 @@ conftest test examples/good/docker-compose.yml --policy policy/  # Should pass
 | DF_SEC_004 | No .env/.ssh/.aws files copied |
 | DF_CMD_003 | No sudo in containers |
 
-#### High Severity (4)
+#### High Severity (Dockerfile)
 
 | Check ID | Description |
 |----------|-------------|
@@ -149,7 +152,7 @@ conftest test examples/good/docker-compose.yml --policy policy/  # Should pass
 | DC_ENV_001 | No hardcoded secrets in environment |
 | DC_ENV_003 | Ensure .env files are in .gitignore |
 
-#### High Severity (4)
+#### High Severity (Compose)
 
 | Check ID | Description |
 |----------|-------------|
@@ -169,7 +172,7 @@ conftest test examples/good/docker-compose.yml --policy policy/  # Should pass
 | GEN_PERM_001 | Correct file permissions (644 for configs, 600 for .env) |
 | GEN_OWNER_001 | Correct file ownership (root:root for configs) |
 
-> **Note**: GEN_PERM_001 and GEN_OWNER_001 require filesystem access. See `policy/checks/general_validation.rego` for shell script examples.
+> **Note**: GEN_PERM_001 and GEN_OWNER_001 require filesystem access. See `policy/general/general_validation.rego` for shell script examples.
 
 See [docs/CHECKS.md](docs/CHECKS.md) for detailed documentation of all checks.
 
@@ -177,7 +180,7 @@ See [docs/CHECKS.md](docs/CHECKS.md) for detailed documentation of all checks.
 
 ### Allowed Registries
 
-Edit `policy/checks/base_image.rego` to customize allowed registries:
+Edit `policy/base/base_image.rego` to customize allowed registries:
 
 ```rego
 allowed_registries := {
@@ -198,7 +201,7 @@ minimal_images := {
 
 ### Dangerous Capabilities
 
-Edit `policy/checks/compose_security.rego` to customize dangerous capabilities list:
+Edit `policy/security/compose_security.rego` to customize dangerous capabilities list:
 
 ```rego
 dangerous_capabilities := {
@@ -271,24 +274,24 @@ echo "✅ All security checks passed!"
 
 ### Adding New Checks
 
-1. Create or edit a file in `policy/checks/`
+1. Create or edit a file in `policy/<category>/`
 2. Follow the pattern:
 
-```rego
-package main
-
-import future.keywords.contains
-import future.keywords.if
-
-# CHECK_ID: Description
-deny contains msg if {
-    # Your check logic here
-    # Use input[i] for Dockerfile
-    # Use input.services for docker-compose
-    
-    msg := "[CHECK_ID][SEVERITY] Clear, actionable error message."
-}
-```
+   ```rego
+   package main
+   
+   import future.keywords.contains
+   import future.keywords.if
+   
+   # CHECK_ID: Description
+   deny contains msg if {
+       # Your check logic here
+       # Use input[i] for Dockerfile
+       # Use input.services for docker-compose
+       
+       msg := "[CHECK_ID][SEVERITY] Clear, actionable error message."
+   }
+   ```
 
 3. Add examples to `examples/bad/` and `examples/good/`
 4. Test with conftest
@@ -304,7 +307,7 @@ conftest test examples/bad/ --policy policy/ --all-namespaces
 conftest test examples/good/ --policy policy/ --all-namespaces
 
 # Count total checks
-grep -r "deny contains msg if" policy/checks/ | wc -l
+grep -r "deny contains msg if" policy/ | wc -l
 ```
 
 ## Examples

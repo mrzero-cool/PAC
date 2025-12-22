@@ -978,6 +978,6 @@ fi
 - **docker-compose**: 15 checks (11 Critical + 4 High)
 - **General**: 4 checks (4 Critical)
 
-All checks are implemented as OPA/Rego policies in the `policy/checks/` directory and can be validated using conftest.
+All checks are implemented as OPA/Rego policies in the `policy/` directory (categorized by type) and can be validated using conftest.
 
 For testing examples and usage, see [examples/README.md](../examples/README.md).
