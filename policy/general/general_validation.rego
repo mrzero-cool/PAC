@@ -68,6 +68,15 @@ deny contains msg if {
     msg := sprintf("[GEN_YAML_001][CRITICAL] Service '%s' must specify either 'image:' or 'build:' directive.", [service_name])
 }
 
+# Additional check: warn if service has debug logging
+deny contains msg if {
+    input.services
+    some service_name, service_config in input.services
+    service_config.logging.options
+    lower(service_config.logging.options.level) == "debug"
+    msg := sprintf("[DC_LOG_003][CRITICAL] Service '%s' uses debug logging which may expose sensitive information. Review logging configuration.", [service_name])
+}
+
 # ==============================================================================
 # DAEMON.JSON VALIDATION
 # ==============================================================================
@@ -98,7 +107,6 @@ deny contains msg if {
     input["storage-driver"]
     storage_driver := input["storage-driver"]
     not is_valid_storage_driver(storage_driver)
-    
     msg := sprintf("[GEN_JSON_001][CRITICAL] Invalid storage-driver in daemon.json: '%s'. Use: overlay2, aufs, btrfs, devicemapper, or zfs.", [storage_driver])
 }
 
@@ -106,6 +114,7 @@ valid_storage_drivers := {
     "overlay2", "aufs", "btrfs", "devicemapper", "zfs", "vfs"
 }
 
+is_valid_storage_driver(driver) if {
     driver in valid_storage_drivers
 }
 
