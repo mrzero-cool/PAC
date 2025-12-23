@@ -119,7 +119,11 @@ deny contains msg if {
     msg := sprintf("[DC_LOG_003][CRITICAL] Service '%s' may log environment variables. Logging config: '%s: %s'. Ensure sensitive data is not logged.", [service_name, key, value_str])
 }
 
-# Additional check: warn if service has both secrets and verbose logging
+# Additional check: warn if service has debug logging
+warn contains msg if {
+    input.services
+    some service_name, service_config in input.services
+    service_config.logging.options.level == "debug"
     msg := sprintf("[DC_LOG_003][CRITICAL] Service '%s' uses debug logging which may expose sensitive information. Review logging configuration.", [service_name])
 }
 
