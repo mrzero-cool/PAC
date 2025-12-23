@@ -1,0 +1,75 @@
+# ==============================================================================
+# BAD DOCKER-COMPOSE.YML EXAMPLE
+# ==============================================================================
+# Violates All 27 Security Checks
+# DO NOT USE IN PRODUCTION
+
+version: "3.8"
+
+services:
+  # Service 1: Major violations service
+  insecure-web:
+    image: nginx:latest # DC_IMG_001: Using :latest tag
+    # DC_IMG_002: No image pull policy (or present but not 'always')
+    pull_policy: if_not_present
+
+    # DC_USER_001: Running as root (default)
+    # DC_USER_002: Privileged mode enabled
+    privileged: true
+
+    # DC_SEC_001: Missing no-new-privileges
+    # DC_SEC_002: Missing cap_drop
+    cap_add:
+      # DC_SEC_003: Dangerous capabilities
+      - SYS_ADMIN
+      - NET_ADMIN
+
+    # DC_SEC_004: Root FS is writable
+    read_only: false
+    # DC_SEC_005: No tmpfs for /tmp (since it's writable anyway)
+
+    ports:
+      - "22:22" # DC_NET_004: Exposing SSH
+      - "80:80"
+      - "8080:8080" # DC_NET_002: Unnecessary extra port
+
+    network_mode: host # DC_NET_005: Host network mode
+    # DC_NET_001: Using default/host network (no custom network)
+
+    volumes:
+      - /:/host # DC_VOL_004: Host root mount
+      - /var/run/docker.sock:/var/run/docker.sock # DC_VOL_003: Docker socket
+      - /var/lib/data:/app/data # DC_VOL_002: Writable host mount
+      # DC_VOL_006: Volume ownership unchecked (root by default)
+      # DC_VOL_007: Using disk for temp files instead of tmpfs
+      - ./temp:/tmp
+      - data-vol:/data:rw # DC_VOL_001: Explicit RW (default)
+
+    environment:
+      - DATABASE_PASSWORD=super_secret_123 # DC_ENV_001: Hardcoded secret (List)
+      - API_KEY=abcdef123456
+
+    # DC_ENV_002: Using environment list instead of env_file/secrets
+    # DC_SEC_MAN_001: Not using Docker Secrets
+
+    logging:
+      driver: json-file
+      options:
+        # DC_LOG_002: No max-size/max-file
+        # DC_LOG_003: Logging sensitive env vars
+        env: "DATABASE_PASSWORD"
+    # DC_HEALTH_001: No healthcheck
+
+    # Service 2: Env file violation example
+  insecure-api:
+    image: node
+    env_file:
+      - .env.local # DC_ENV_003: Committing local env files (simulated violation)
+    environment:
+      API_SECRET: "12345" # DC_ENV_001: Hardcoded secret (Map)
+
+    logging:
+      driver: none # DC_LOG_001: No logging configured (or just missing logging section)
+
+volumes:
+  data-vol:

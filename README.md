@@ -1,153 +1,385 @@
 # Docker Security OPA Policies
 
-Comprehensive Open Policy Agent (OPA) Rego policies for Docker security best practices.
+Comprehensive Open Policy Agent (OPA) Rego policies for Docker security best practices covering Dockerfiles, docker-compose.yml, and general validation.
 
 ## Overview
 
-This project provides **21 Critical and High severity security checks** for Dockerfiles, organized in a modular, maintainable structure.
+This project provides **54 security checks** organized in a modular, maintainable structure:
 
-- **8 Critical** severity checks
-- **13 High** severity checks
-- **100% test coverage** with bad/good examples
+- **25 Dockerfile checks** (Basic, User, Files, Security, Packages, Commands, etc.)
+- **27 docker-compose.yml checks** (Images, User, Security, Network, Volumes, Logging, etc.)
+- **2 General validation checks**
+- **100% policy coverage** with documented bad/good examples
 
 ## Quick Start
 
 ### Prerequisites
 
 - [conftest](https://www.conftest.dev/) installed
-- Dockerfile to test
+- Dockerfile or docker-compose.yml to test
+
+### Installation
+
+```bash
+# Windows (using Scoop)
+scoop install conftest
+
+# macOS (using Homebrew)
+brew install conftest
+
+# Linux (using wget)
+wget https://github.com/open-policy-agent/conftest/releases/download/v0.48.0/conftest_0.48.0_Linux_x86_64.tar.gz
+tar xzf conftest_0.48.0_Linux_x86_64.tar.gz
+sudo mv conftest /usr/local/bin/
+```
 
 ### Usage
 
 Test a Dockerfile:
 
 ```bash
-conftest test path/to/Dockerfile --policy policy/
+conftest test Dockerfile --policy policy/
+```
+
+Test a docker-compose.yml:
+
+```bash
+conftest test docker-compose.yml --policy policy/
+```
+
+Test all files in a directory:
+
+```bash
+conftest test . --policy policy/ --all-namespaces
 ```
 
 Test examples:
 
 ```bash
-# Should show ~20 failures
-conftest test examples/bad/Dockerfile --policy policy/
+# Dockerfile tests
+conftest test examples/bad/Dockerfile --policy policy/      # Should show ~13 failures
+conftest test examples/good/Dockerfile --policy policy/     # Should pass
 
-# Should pass all checks
-conftest test examples/good/Dockerfile --policy policy/
+# docker-compose tests
+conftest test examples/bad/docker-compose.yml --policy policy/   # Should show ~15 failures
+conftest test examples/good/docker-compose.yml --policy policy/  # Should pass
 ```
 
 ## Project Structure
 
-```
-├── policy/                    # OPA Rego policies
-│   ├── main.rego             # Entry point
+```text
+├── policy/                        # OPA Rego policies
+│   ├── main.rego                  # Entry point
 │   ├── lib/
-│   │   └── helpers.rego      # Common helper functions
-│   └── checks/               # Modular check files
-│       ├── base_image.rego   # Base image checks (5)
-│       ├── user.rego         # User/permission checks (3)
-│       ├── security.rego     # Secrets checks (3)
-│       ├── files.rego        # File operation checks (3)
-│       ├── packages.rego     # Package management (2)
-│       ├── commands.rego     # CMD/ENTRYPOINT (3)
-│       ├── filesystem.rego   # Filesystem checks (1)
-│       └── multistage.rego   # Multistage builds (1)
+│   │   └── helpers.rego           # Common helper functions
+│   ├── base/                      # Base image checks
+│   │   ├── base_image.rego
+│   │   └── compose_image.rego     # [New] Compose image checks
+│   ├── user/                      # User & permission checks
+│   │   ├── user.rego
+│   │   └── compose_user.rego
+│   ├── network/                   # Network checks
+│   │   └── compose_network.rego
+│   ├── security/                  # Security options & secrets
+│   │   ├── security.rego
+│   │   ├── compose_security.rego
+│   │   └── compose_environment.rego
+│   ├── files/                     # File operation checks
+│   │   ├── files.rego
+│   │   ├── filesystem.rego
+│   │   └── compose_volumes.rego
+│   ├── commands/                  # Command checks
+│   │   └── commands.rego
+│   └── general/                   # General validation
+│       └── general_validation.rego
 ├── examples/
-│   ├── bad/Dockerfile        # Anti-patterns
-│   ├── good/Dockerfile       # Best practices
-│   └── README.md
+│   ├── bad/
+│   │   ├── Dockerfile             # Anti-patterns (13 violations)
+│   │   └── docker-compose.yml     # Anti-patterns (15 violations)
+│   ├── good/
+│   │   ├── Dockerfile             # Best practices
+│   │   └── docker-compose.yml     # Best practices
+│   └── README.md                  # Testing guide
 ├── docs/
-│   └── CHECKS.md             # Detailed check reference
-└── README.md                 # This file
+│   └── CHECKS.md                  # Detailed check reference
+└── README.md                      # This file
 ```
 
-## Security Checks
+## Security Checks (54 Total)
 
-### Critical (8)
+### Dockerfile Checks (25)
 
-- DF_BASE_001: Specific version tag (no `latest`)
-- DF_BASE_003: Trusted registries only
-- DF_USER_001: Non-root user required
-- DF_USER_002: Final USER not root
-- DF_FILE_004: No `curl | bash` patterns
-- DF_SEC_001: No hardcoded secrets
-- DF_SEC_002: No secrets via ARG
-- DF_SEC_004: No .env/.ssh/.aws files
+#### Critical & High Severity Highlights
 
-### High (13)
+| Check ID | Description | Severity |
+|----------|-------------|----------|
+| **DF_BASE_001** | Use specific version tag (no `latest`) | Critical |
+| **DF_BASE_003** | Use trusted registries only | Critical |
+| **DF_USER_001** | Non-root user required | Critical |
+| **DF_USER_002** | Final USER must not be root | Critical |
+| **DF_FILE_002** | Explicit COPY (no wildcards) | Critical |
+| **DF_FILE_004** | No `curl \| bash` patterns | Critical |
+| **DF_SEC_001** | No hardcoded secrets in Dockerfile | Critical |
+| **DF_SEC_002** | No secrets via build ARG | Critical |
+| **DF_SEC_004** | No sensitive files (.env, .ssh) copied | Critical |
+| **DF_PKG_002** | Pin package versions | High |
+| **DF_PKG_006** | Remove unnecessary packages | High |
+| **DF_CMD_002** | Use exec form for CMD/ENTRYPOINT | High |
+| **DF_CMD_003** | No sudo in containers | High |
 
-- DF_BASE_002: Minimal base images
-- DF_BASE_004: SHA256 digest pinning
-- DF_BASE_005: Maintained images
-- DF_USER_003: No SUID/SGID bits
-- DF_FILE_002: Specific COPY (no wildcards)
-- DF_FILE_003: Safe permissions
-- DF_PKG_002: Pin package versions
-- DF_PKG_006: Remove dev tools
-- DF_CMD_002: Exec form
-- DF_CMD_003: No sudo
-- DF_CMD_004: Minimize root
-- DF_FS_003: WORKDIR ownership
-- DF_MULTI_003: Specific artifacts in multistage
+### docker-compose.yml Checks (27)
 
-See [docs/CHECKS.md](docs/CHECKS.md) for detailed documentation.
+#### Essential Compose Security Checks
+
+| Check ID | Description | Severity |
+|----------|-------------|----------|
+| **DC_IMG_001** | Use specific image version tags | Critical |
+| **DC_USER_001** | Run services as non-root user | Critical |
+| **DC_USER_002** | Do not use privileged mode | Critical |
+| **DC_SEC_002** | Drop all unnecessary capabilities | Critical |
+| **DC_NET_005** | Avoid `network_mode: host` | Critical |
+| **DC_VOL_002** | Avoid writable host directory mounts | Critical |
+| **DC_VOL_003** | Never mount Docker socket | Critical |
+| **DC_VOL_004** | Never mount host root filesystem | Critical |
+| **DC_ENV_001** | No hardcoded secrets in environment | Critical |
+| **DC_ENV_003** | Ensure .env files are in .gitignore | Critical |
+| **DC_SEC_001** | Enable `no-new-privileges:true` | High |
+| **DC_SEC_004** | Set read-only root filesystem | High |
+| **DC_SEC_005** | Use tmpfs for temporary files | High |
+| **DC_NET_001** | Use custom networks | High |
+| **DC_NET_004** | Do not expose SSH port 22 | High |
+| **DC_LOG_001** | Configure logging driver | High |
+
+| **GEN_YAML_001** | Valid YAML syntax for docker-compose.yml | Critical |
+| **GEN_JSON_001** | Valid JSON syntax for daemon.json | Critical |
+
+> **Note**: Full list available in [docs/CHECKS.md](docs/CHECKS.md).
+
+See [docs/CHECKS.md](docs/CHECKS.md) for detailed documentation of all checks.
 
 ## Configuration
 
 ### Allowed Registries
 
-Edit `policy/checks/base_image.rego` to customize allowed registries:
+Edit `policy/base/base_image.rego` to customize allowed registries:
 
 ```rego
-allowed_registries := {"your.registry.com", "gcr.io", ...}
+allowed_registries := {
+    "docker.io/library", "gcr.io", "ghcr.io",
+    "your-registry.example.com"
+}
 ```
 
 ### Minimal Images
 
-Edit the `minimal_images` set to customize preferred base images.
+Edit the `minimal_images` set to customize preferred base images:
+
+```rego
+minimal_images := {
+    "alpine", "distroless", "scratch", "chainguard"
+}
+```
+
+### Dangerous Capabilities
+
+Edit `policy/security/compose_security.rego` to customize dangerous capabilities list:
+
+```rego
+dangerous_capabilities := {
+    "SYS_ADMIN", "NET_ADMIN", "SYS_MODULE", ...
+}
+```
 
 ## CI/CD Integration
 
 ### GitHub Actions
 
 ```yaml
-- name: Dockerfile Security Scan
-  run: conftest test Dockerfile --policy policy/
+name: Docker Security Scan
+
+on: [push, pull_request]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install conftest
+        run: |
+          wget https://github.com/open-policy-agent/conftest/releases/download/v0.48.0/conftest_0.48.0_Linux_x86_64.tar.gz
+          tar xzf conftest_0.48.0_Linux_x86_64.tar.gz
+          sudo mv conftest /usr/local/bin/
+      
+      - name: Test Dockerfile
+        run: conftest test Dockerfile --policy policy/
+      
+      - name: Test docker-compose.yml
+        run: conftest test docker-compose.yml --policy policy/
 ```
 
 ### GitLab CI
 
 ```yaml
-dockerfile_scan:
+dockerfile_security_scan:
+  stage: test
+  image: openpolicyagent/conftest:latest
   script:
     - conftest test Dockerfile --policy policy/
+    - conftest test docker-compose.yml --policy policy/
+  only:
+    - merge_requests
+    - main
+```
+
+### Pre-commit Hook
+
+Create `.git/hooks/pre-commit`:
+
+```bash
+#!/bin/bash
+echo "Running Docker security checks..."
+
+if [ -f "Dockerfile" ]; then
+    conftest test Dockerfile --policy policy/ || exit 1
+fi
+
+if [ -f "docker-compose.yml" ]; then
+    conftest test docker-compose.yml --policy policy/ || exit 1
+fi
+
+echo "✅ All security checks passed!"
 ```
 
 ## Development
 
 ### Adding New Checks
 
-1. Create or edit a file in `policy/checks/`
+1. Create or edit a file in `policy/<category>/`
 2. Follow the pattern:
 
-```rego
-package main
-import future.keywords.contains
-import future.keywords.if
+   ```rego
+   package main
+   
+   import future.keywords.contains
+   import future.keywords.if
+   
+   # CHECK_ID: Description
+   deny contains msg if {
+       # Your check logic here
+       # Use input[i] for Dockerfile
+       # Use input.services for docker-compose
+       
+       msg := "[CHECK_ID][SEVERITY] Clear, actionable error message."
+   }
+   ```
 
-deny contains msg if {
-    # your check logic
-    msg := "[CHECK_ID][SEVERITY] Description"
-}
+3. Add examples to `examples/bad/` and `examples/good/`
+4. Test with conftest
+5. Update documentation
+
+### Testing Policies
+
+```bash
+# Test against bad examples (should fail)
+conftest test examples/bad/ --policy policy/ --all-namespaces
+
+# Test against good examples (should pass)
+conftest test examples/good/ --policy policy/ --all-namespaces
+
+# Count total checks
+grep -r "deny contains msg if" policy/ | wc -l
 ```
 
-3. Test with examples
-4. Update documentation
+## Examples
+
+### Bad Dockerfile (Violations)
+
+```dockerfile
+FROM ubuntu:latest                    # DF_BASE_001: Using :latest
+RUN curl https://get.sh | bash        # DF_FILE_004: curl | bash
+ENV PASSWORD=secret123                # DF_SEC_001: Hardcoded secret
+COPY . .                              # DF_FILE_002: Wildcard copy
+CMD node server.js                    # DF_CMD_002: Shell form
+# Missing USER instruction             # DF_USER_001: No non-root user
+```
+
+### Good Dockerfile (Compliant)
+
+```dockerfile
+FROM alpine:3.19.0@sha256:abc123...   # DF_BASE_001: Specific version + digest
+WORKDIR /app
+COPY package*.json ./                 # DF_FILE_002: Specific files
+RUN adduser -D appuser && \
+    chown -R appuser:appuser /app     # DF_FS_003: Proper ownership
+USER appuser                          # DF_USER_001, DF_USER_002: Non-root
+ENTRYPOINT ["node", "server.js"]      # DF_CMD_002: Exec form
+```
+
+### Bad docker-compose.yml (Violations)
+
+```yaml
+services:
+  web:
+    image: nginx:latest               # DC_IMG_001: Using :latest
+    privileged: true                  # DC_USER_002: Privileged mode
+    ports: ["22:22"]                  # DC_NET_004: SSH exposed
+    volumes:
+      - /:/host                       # DC_VOL_004: Host root mount
+      - /var/run/docker.sock:/var/run/docker.sock  # DC_VOL_003: Docker socket
+    environment:
+      - DB_PASSWORD=secret            # DC_ENV_001: Hardcoded secret
+```
+
+### Good docker-compose.yml (Compliant)
+
+```yaml
+services:
+  web:
+    image: nginx:1.25.3-alpine        # DC_IMG_001: Specific version
+    user: "1000:1000"                 # DC_USER_001: Non-root
+    security_opt:
+      - no-new-privileges:true        # DC_SEC_001: Prevent escalation
+    cap_drop: [ALL]                   # DC_SEC_002: Drop all caps
+    cap_add: [NET_BIND_SERVICE]       # DC_SEC_003: Only required
+    ports: ["8080:80"]                # DC_NET_002/004: Safe ports
+    volumes:
+      - ./html:/usr/share/nginx/html:ro  # DC_VOL_002: Read-only mount
+    env_file: .env.production         # DC_ENV_001: External secrets
+```
+
+## Best Practices Summary
+
+### Dockerfile
+
+✅ Use specific, tagged, minimal base images  
+✅ Run as non-root user  
+✅ Copy only required files  
+✅ No hardcoded secrets  
+✅ Use exec form for CMD/ENTRYPOINT  
+✅ Set proper file ownership  
+
+### docker-compose.yml
+
+✅ Specific image version tags  
+✅ Non-root users (`user: "1000:1000"`)  
+✅ Security hardening (`no-new-privileges`, `cap_drop: [ALL]`)  
+✅ Minimal port exposure  
+✅ Read-only mounts where possible  
+✅ External secrets management  
+✅ No Docker socket or host root mounts  
 
 ## License
 
-See project license file.
+See LICENSE.md
 
 ## Support
 
-For issues or questions, refer to the documentation or raise an issue.
-Author: mrzero-cool
+For issues or questions:
+
+- Check [docs/CHECKS.md](docs/CHECKS.md) for detailed check documentation
+- Review [examples/README.md](examples/README.md) for testing guidance
+- Raise an issue on the repository
+
+**Author**: mrzero-cool  
+**Project**: PAC - Policy as Code for Docker Security
