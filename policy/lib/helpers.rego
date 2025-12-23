@@ -59,3 +59,8 @@ is_root(user) if {
 is_root(user) if {
     contains(user, ":root")
 }
+
+# Helper to get minimum
+min(a, b) := a if {
+    a < b
+} else := b
