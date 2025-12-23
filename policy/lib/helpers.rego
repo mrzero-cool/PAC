@@ -48,16 +48,31 @@ is_secret_key(key) if {
 
 # Check if user is root
 is_root(user) if {
-    user == "root"
+    lower(user) == "root"
 }
+
 is_root(user) if {
     user == "0"
 }
+
 is_root(user) if {
-    contains(user, ":0")
+    # UID:GID format where UID is 0
+    startswith(user, "0:")
 }
+
 is_root(user) if {
-    contains(user, ":root")
+    # root:GID format
+    startswith(lower(user), "root:")
+}
+
+is_root(user) if {
+    # :0 format (inherits UID, GID is 0)
+    user == ":0"
+}
+
+is_root(user) if {
+    # :root format
+    lower(user) == ":root"
 }
 
 # Helper to get minimum
