@@ -120,6 +120,3 @@ get_root_operation(cmd_str) := "chmod 777" if {
 } else := operation if {
     operation := substring(cmd_str, 0, min(50, count(cmd_str)))
 }
-
-
-
