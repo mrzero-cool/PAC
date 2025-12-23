@@ -121,11 +121,5 @@ get_root_operation(cmd_str) := "chmod 777" if {
     operation := substring(cmd_str, 0, min(50, count(cmd_str)))
 }
 
-# Helper to get minimum
-min(a, b) := a if {
-    a < b
-}
-min(a, b) := b if {
-    b <= a
-}
+
 
