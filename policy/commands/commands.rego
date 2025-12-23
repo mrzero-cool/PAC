@@ -113,10 +113,19 @@ requires_root_unnecessarily(cmd_str) if {
     regex.match("chown\\s+0:0", cmd_str)
 }
 
-get_root_operation(cmd_str) := "chmod 777" if {
+get_root_operation(cmd_str) := result if {
     contains(cmd_str, "chmod 777")
-} else := "chown root" if {
+    result := "chmod 777"
+}
+
+get_root_operation(cmd_str) := result if {
+    not contains(cmd_str, "chmod 777")
     contains(cmd_str, "chown root")
-} else := operation if {
-    operation := substring(cmd_str, 0, min(50, count(cmd_str)))
+    result := "chown root"
+}
+
+get_root_operation(cmd_str) := result if {
+    not contains(cmd_str, "chmod 777")
+    not contains(cmd_str, "chown root")
+    result := substring(cmd_str, 0, min(50, count(cmd_str)))
 }
