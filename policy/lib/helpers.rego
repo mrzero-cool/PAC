@@ -75,7 +75,13 @@ is_root(user) if {
     lower(user) == ":root"
 }
 
-# Helper to get minimum
-min(a, b) := a if {
+# Helper to get minimum - returns the smaller of two numbers
+min(a, b) := result if {
     a < b
-} else := b
+    result := a
+}
+
+min(a, b) := result if {
+    a >= b
+    result := b
+}
