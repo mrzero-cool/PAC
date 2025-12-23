@@ -41,35 +41,6 @@ deny contains msg if {
     msg := sprintf("[DF_USER_002][CRITICAL] The final USER instruction must not be 'root'. Found: '%s'. Use non-root user (e.g., USER appuser or USER 1000:1000).", [user_spec])
 }
 
-is_root(user) if {
-    lower(user) == "root"
-}
-
-is_root(user) if {
-    user == "0"
-}
-
-is_root(user) if {
-    # UID:GID format where UID is 0
-    startswith(user, "0:")
-}
-
-is_root(user) if {
-    # root:GID format
-    lower_user := lower(user)
-    startswith(lower_user, "root:")
-}
-
-is_root(user) if {
-    # :0 format (inherits UID, GID is 0)
-    user == ":0"
-}
-
-is_root(user) if {
-    # :root format
-    lower_user := lower(user)
-    user == ":root"
-}
 
 # DF_USER_003: Remove SUID and SGID bits from files
 # Enhanced: Comprehensive SUID/SGID detection with numeric and symbolic modes
