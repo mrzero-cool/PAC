@@ -91,14 +91,29 @@ has_insecure_chmod(cmd_str) if {
     not regex.match("chmod.*(755|750)", cmd_str)
 }
 
-get_insecure_pattern(cmd_str) := "chmod 777" if {
+get_insecure_pattern(cmd_str) := result if {
     regex.match("chmod.*(777|0777)", cmd_str)
-} else := "chmod 666" if {
+    result := "chmod 777"
+}
+
+get_insecure_pattern(cmd_str) := result if {
+    not regex.match("chmod.*(777|0777)", cmd_str)
     regex.match("chmod.*(666|0666)", cmd_str)
-} else := "chmod o+w" if {
+    result := "chmod 666"
+}
+
+get_insecure_pattern(cmd_str) := result if {
+    not regex.match("chmod.*(777|0777)", cmd_str)
+    not regex.match("chmod.*(666|0666)", cmd_str)
     regex.match("chmod.*o\\+w", cmd_str)
-} else := "chmod with insecure permissions" if {
-    true
+    result := "chmod o+w"
+}
+
+get_insecure_pattern(cmd_str) := result if {
+    not regex.match("chmod.*(777|0777)", cmd_str)
+    not regex.match("chmod.*(666|0666)", cmd_str)
+    not regex.match("chmod.*o\\+w", cmd_str)
+    result := "chmod with insecure permissions"
 }
 
 # DF_FILE_004: Avoid curl | bash / wget | sh patterns
@@ -212,40 +227,84 @@ has_unpinned_packages(cmd_str) if {
     not contains(cmd_str, "--version")
 }
 
-get_package_manager(cmd_str) := "apt-get" if {
+get_package_manager(cmd_str) := result if {
     contains(cmd_str, "apt-get")
+    result := "apt-get"
 }
 
-get_package_manager(cmd_str) := "apt" if {
+get_package_manager(cmd_str) := result if {
+    not contains(cmd_str, "apt-get")
     regex.match("apt\\s+install", cmd_str)
+    result := "apt"
 }
 
-get_package_manager(cmd_str) := "apk" if {
+get_package_manager(cmd_str) := result if {
+    not contains(cmd_str, "apt-get")
+    not regex.match("apt\\s+install", cmd_str)
     contains(cmd_str, "apk add")
+    result := "apk"
 }
 
-get_package_manager(cmd_str) := "yum" if {
+get_package_manager(cmd_str) := result if {
+    not contains(cmd_str, "apt-get")
+    not regex.match("apt\\s+install", cmd_str)
+    not contains(cmd_str, "apk add")
     contains(cmd_str, "yum install")
+    result := "yum"
 }
 
-get_package_manager(cmd_str) := "dnf" if {
+get_package_manager(cmd_str) := result if {
+    not contains(cmd_str, "apt-get")
+    not regex.match("apt\\s+install", cmd_str)
+    not contains(cmd_str, "apk add")
+    not contains(cmd_str, "yum install")
     contains(cmd_str, "dnf install")
+    result := "dnf"
 }
 
-get_package_manager(cmd_str) := "pip" if {
+get_package_manager(cmd_str) := result if {
+    not contains(cmd_str, "apt-get")
+    not regex.match("apt\\s+install", cmd_str)
+    not contains(cmd_str, "apk add")
+    not contains(cmd_str, "yum install")
+    not contains(cmd_str, "dnf install")
     regex.match("pip3?\\s+install", cmd_str)
+    result := "pip"
 }
 
-get_package_manager(cmd_str) := "npm" if {
+get_package_manager(cmd_str) := result if {
+    not contains(cmd_str, "apt-get")
+    not regex.match("apt\\s+install", cmd_str)
+    not contains(cmd_str, "apk add")
+    not contains(cmd_str, "yum install")
+    not contains(cmd_str, "dnf install")
+    not regex.match("pip3?\\s+install", cmd_str)
     contains(cmd_str, "npm install")
+    result := "npm"
 }
 
-get_package_manager(cmd_str) := "gem" if {
+get_package_manager(cmd_str) := result if {
+    not contains(cmd_str, "apt-get")
+    not regex.match("apt\\s+install", cmd_str)
+    not contains(cmd_str, "apk add")
+    not contains(cmd_str, "yum install")
+    not contains(cmd_str, "dnf install")
+    not regex.match("pip3?\\s+install", cmd_str)
+    not contains(cmd_str, "npm install")
     contains(cmd_str, "gem install")
+    result := "gem"
 }
 
-get_package_manager(cmd_str) := "package manager" if {
-    true  # Fallback
+get_package_manager(cmd_str) := result if {
+    not contains(cmd_str, "apt-get")
+    not regex.match("apt\\s+install", cmd_str)
+    not contains(cmd_str, "apk add")
+    not contains(cmd_str, "yum install")
+    not contains(cmd_str, "dnf install")
+    not regex.match("pip3?\\s+install", cmd_str)
+    not contains(cmd_str, "npm install")
+    not contains(cmd_str, "gem install")
+    result := "package manager"
 }
 
 # DF_PKG_006: Remove unnecessary packages
