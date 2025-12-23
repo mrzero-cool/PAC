@@ -92,6 +92,7 @@ is_host_network(mode) if {
     lower(mode) == "host"
 }
 
+is_host_network(mode) if {
     mode_str := sprintf("%v", [mode])
     lower(mode_str) == "host"
 }
